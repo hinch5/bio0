@@ -5,5 +5,5 @@ concept.odt - файл с описанием алгоритма
 
 Запуск:
 ```bash
-go run random.go main.go -file <входной fasta файл> -out <выходной xlsx файл> -n <число. количество взятых строк>
+go run random.go main.go -file <входной fasta файл> -out <выходной xlsx файл> -n <число. количество берущихся из файла последовательностей>
 ```
