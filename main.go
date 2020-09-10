@@ -10,6 +10,8 @@ import (
 	"strings"
 )
 
+var doubleSeqs []string
+
 func min(a, b int64) int64 {
 	if a > b {
 		return b
@@ -24,37 +26,37 @@ func (s SubstringsMap) Intersect(a SubstringsMap) int64 {
 	var res int64
 	for k, v := range s {
 		if v2, ok := a[k]; ok {
-			m := min(v, v2)
-			res += m * int64(len(k))
+			m := min(v, v2) * int64(len(k))
+			res += m
 			newS[k] = m
 		}
 	}
 	return res
 }
 
-func circleString(seq string, ind, size int) string {
+func circleString(seq, double string, ind, size int) string {
 	if ind+size < len(seq) {
-		return seq[ind:ind+size]
+		return seq[ind : ind+size]
 	} else {
-		return fmt.Sprintf("%s%s", seq[ind:], seq[:(size-(len(seq)-ind))])
+		return double[ind : ind+size]
 	}
 }
 
 func getKey(key string) string {
-	return strings.Split(key, "|")[1]
+	return strings.Split(strings.Split(key, "|")[2], " ")[0]
 }
 
-func makeSubstringMap(seq string) SubstringsMap {
+func makeSubstringMap(seq, double string) SubstringsMap {
 	res := SubstringsMap{}
 	for i := 1; i <= len(seq); i++ {
 		for j := 0; j < len(seq); j++ {
-			res[circleString(seq, j, i)]++
+			res[circleString(seq, double, j, i)]++
 		}
 	}
 	return res
 }
 
-func makeResFile(seqs []string, res map[string]map[string]float64) {
+func makeResFile(seqs []string, res map[string]map[string]float64, file string) {
 	f := xlsx.NewFile()
 	sheet, err := f.AddSheet("Sheet1")
 	if err != nil {
@@ -80,7 +82,7 @@ func makeResFile(seqs []string, res map[string]map[string]float64) {
 			c.Value = fmt.Sprintf("%f", res[v][v2])
 		}
 	}
-	resFile, err := os.OpenFile("res.xlsx", os.O_CREATE | os.O_WRONLY, os.ModePerm)
+	resFile, err := os.OpenFile(file, os.O_CREATE|os.O_WRONLY, os.ModePerm)
 	if err != nil {
 		log.Panicln(err)
 	}
@@ -92,29 +94,39 @@ func makeResFile(seqs []string, res map[string]map[string]float64) {
 
 func main() {
 	var (
-		name string
+		name, out string
+		n int
 	)
 	flag.StringVar(&name, "file", "", "")
+	flag.StringVar(&out, "out", "", "")
+	flag.IntVar(&n, "n", 0, "")
 	flag.Parse()
-	if name == "" {
+	if name == "" || out == "" {
 		log.Panicln("empty name")
+	}
+	if n == 0 {
+		n = 79
 	}
 	var keys []string
 	seqs := fasta.Read(name)
+	seqs = append(seqs[:n], RandomSeqs()...)
+	for _, s := range seqs {
+		doubleSeqs = append(doubleSeqs, s.Sequence+s.Sequence)
+	}
 	subMaps := make(map[string]SubstringsMap, len(seqs))
-	for _, s := range seqs[:2] {
+	for i, s := range seqs {
 		keys = append(keys, getKey(s.Name))
-		subMaps[getKey(s.Name)] = makeSubstringMap(s.Sequence)
+		subMaps[getKey(s.Name)] = makeSubstringMap(s.Sequence, doubleSeqs[i])
 	}
 	
 	res := make(map[string]map[string]float64, len(seqs))
 	for i := range keys {
 		res[keys[i]] = map[string]float64{}
 		for j := i; j < len(keys); j++ {
-			size := (len(seqs[i].Sequence) + len(seqs[j].Sequence))/2
-			size = size * size * (size + 1)/2
-			res[keys[i]][keys[j]] = float64(subMaps[keys[i]].Intersect(subMaps[keys[j]]))/float64(size)
+			size := (len(seqs[i].Sequence) + len(seqs[j].Sequence)) / 2
+			size = size * size * (size + 1) / 2
+			res[keys[i]][keys[j]] = float64(subMaps[keys[i]].Intersect(subMaps[keys[j]])) / float64(size)
 		}
 	}
-	makeResFile(keys, res)
+	makeResFile(keys, res, out)
 }
