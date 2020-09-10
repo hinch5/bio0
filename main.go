@@ -102,7 +102,7 @@ func main() {
 	var keys []string
 	seqs := fasta.Read(name)
 	subMaps := make(map[string]SubstringsMap, len(seqs))
-	for _, s := range seqs[:5] {
+	for _, s := range seqs[:2] {
 		keys = append(keys, getKey(s.Name))
 		subMaps[getKey(s.Name)] = makeSubstringMap(s.Sequence)
 	}
