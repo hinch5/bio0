@@ -10,22 +10,22 @@ import (
 	"strings"
 )
 
-func min(a, b int) int {
+func min(a, b int64) int64 {
 	if a > b {
 		return b
 	}
 	return a
 }
 
-type SubstringsMap map[string]int
+type SubstringsMap map[string]int64
 
-func (s SubstringsMap) Intersect(a SubstringsMap) int {
+func (s SubstringsMap) Intersect(a SubstringsMap) int64 {
 	newS := SubstringsMap{}
-	var res int
+	var res int64
 	for k, v := range s {
 		if v2, ok := a[k]; ok {
 			m := min(v, v2)
-			res += m
+			res += m * int64(len(k))
 			newS[k] = m
 		}
 	}
@@ -54,7 +54,7 @@ func makeSubstringMap(seq string) SubstringsMap {
 	return res
 }
 
-func makeResFile(seqs []string, res map[string]map[string]int) {
+func makeResFile(seqs []string, res map[string]map[string]float64) {
 	f := xlsx.NewFile()
 	sheet, err := f.AddSheet("Sheet1")
 	if err != nil {
@@ -73,11 +73,11 @@ func makeResFile(seqs []string, res map[string]map[string]int) {
 		for k := 0; k < i; k++ {
 			row.AddCell()
 		}
-		c := row.AddCell()
-		c.Value = "1"
-		for _, v2 := range seqs[i+1:] {
+		//c := row.AddCell()
+		//c.Value = "1"
+		for _, v2 := range seqs[i:] {
 			c := row.AddCell()
-			c.Value = fmt.Sprintf("%d", res[v][v2])
+			c.Value = fmt.Sprintf("%f", res[v][v2])
 		}
 	}
 	resFile, err := os.OpenFile("res.xlsx", os.O_CREATE | os.O_WRONLY, os.ModePerm)
@@ -102,19 +102,18 @@ func main() {
 	var keys []string
 	seqs := fasta.Read(name)
 	subMaps := make(map[string]SubstringsMap, len(seqs))
-	for _, s := range seqs[:2] {
+	for _, s := range seqs[:5] {
 		keys = append(keys, getKey(s.Name))
 		subMaps[getKey(s.Name)] = makeSubstringMap(s.Sequence)
 	}
 	
-	
-	res := make(map[string]map[string]int, len(seqs))
+	res := make(map[string]map[string]float64, len(seqs))
 	for i := range keys {
-		res[keys[i]] = map[string]int{}
-		for j := i + 1; j < len(keys); j++ {
-			size := (len(keys[i]) + len(keys[j]))/2
+		res[keys[i]] = map[string]float64{}
+		for j := i; j < len(keys); j++ {
+			size := (len(seqs[i].Sequence) + len(seqs[j].Sequence))/2
 			size = size * size * (size + 1)/2
-			res[keys[i]][keys[j]] = subMaps[keys[i]].Intersect(subMaps[keys[j]])/size
+			res[keys[i]][keys[j]] = float64(subMaps[keys[i]].Intersect(subMaps[keys[j]]))/float64(size)
 		}
 	}
 	makeResFile(keys, res)
